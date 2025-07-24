@@ -25,15 +25,12 @@ SELETORES_FIPE = {
         "#version-price-fipe > tr:nth-child(1) > td:nth-child(4) > p",
         "#version-price-fipe > tr.versionTemplate-module__qVM2Bq__highlighted > td:nth-child(4) > p",
         "//table[@id='version-price-fipe']//td[position()=4]/p",
-        '//*[@id="version-price-fipe"]/tr[1]/td[2]/p'
     ],
     "preco_fipe": [
         "#version-price-fipe > tr:nth-child(1) > td:nth-child(5) > p > b",
         "#version-price-fipe > tr.versionTemplate-module__qVM2Bq__highlighted > td:nth-child(5) > p > b",
         "//article/section[2]/div/div[3]/div/div[2]/span/span/h2/b",
         "//article/section[2]/div/div[3]/div/div[1]/span/span/h3/b",
-        "//article/section[2]/div/div[4]/div/div[1]/span/span/h3",
-        '//*[@id="version-price-fipe"]/tr[1]/td[3]/p'
     ]
 }
 
