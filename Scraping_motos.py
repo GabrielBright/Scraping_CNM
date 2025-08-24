@@ -115,13 +115,13 @@ async def extracao_dados(contexto, link, semaphore):
 
                     seletores = {
                         "Modelo": 'main article section.row div.column span p > b',
-                        "Versão": 'main article section.row div.column span p > small',
-                        "Preço": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x > div > div > span > p > b',
-                        "Localização": 'main article section.row div.column ul > li:nth-child(1) > p > b',
-                        "Ano do Modelo": 'main article section.row div.column ul > li:nth-child(2) > p > b',
-                        "KM": 'main article section.row div.column ul > li:nth-child(3) > p > b',
-                        "Transmissão": 'main article section.row div.column ul > li:nth-child(4) > p > b',
-                        "Combustível": 'main article section.row div.column ul > li:nth-child(5) > p > b',
+                        "Versão": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.   style-module__2c1zQG__vehicleDataWrapper > div > span > p > span',
+                        "Preço": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > div > div > p > b',
+                        "Localização": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > ul > li:nth-child(1) > b',
+                        "Ano do Modelo": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > ul > li:nth-child(2) > b',
+                        "KM": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[3]/b/text()[1]',
+                        "Transmissão": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > ul > li:nth-child(5) > b',
+                        "Combustível": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[4]/b',
                         "Anunciante": 'aside span span.wrap a span h2 > b'
                     }
 
@@ -133,12 +133,7 @@ async def extracao_dados(contexto, link, semaphore):
                     dados["Cidade"] = "Desconhecido"
 
                     dados["Cor"] = await extrair_texto(pagina, [
-                        '//li[contains(text(), "Cor")]/p/b',
-                        '//article/article/section[2]/div/div[1]/ul/li[7]/p/b',
-                        '//article/article/section[2]/div/div[1]/ul/li[6]/p/b',
-                        'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x > ul > li:nth-child(7) > p > b',
-                        'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x > ul > li:nth-child(6) > p > b',
-                        '.style-module__icNBzq__mainSection .column.spacing-2x ul li:nth-child(7) p b'
+                        '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[7]/b',
                     ])
 
                     dados["Código Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["codigo_fipe"])
@@ -158,8 +153,8 @@ async def extracao_dados(contexto, link, semaphore):
                         dados["Ano do Modelo"] = "N/A"
                         
                     blindagem = await extrair_texto(pagina, [
-                        '/html/body/main/article/section[2]/div/div[3]/span/ul',
-                        'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.style-module__HWYeja__optionalItemsContainer > span > ul'
+                        '/html/body/main/article/section[2]/div/div[2]/span/ul/li[14]/svg',
+                        'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.style-module__HWYeja__optionalItemsContainer > span > ul > li:nth-child(14) > p'
                     ], default="")
 
                     dados["Blindados"] = "Sim" if "blindado" in blindagem.lower() else "Nao"
