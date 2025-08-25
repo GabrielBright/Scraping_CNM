@@ -81,20 +81,33 @@ async def extracao_dados(contexto, link, semaphore):
                         await asyncio.sleep(0.4)
 
                     seletores = {
-                        "Modelo": 'main article section.row div.column span p > b',
-                        "Versão": '/html/body/main/article/section[2]/div/div[1]/div[1]/div/span/p/span',
-                        "Preço": '/html/body/main/article/section[2]/div/div[1]/div[1]/div/div/p',
-                        "Localização": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[1]/b',
-                        "Ano do Modelo": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > ul > li:nth-child(2) > b',
-                        "KM": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[3]/b',
-                        "Transmissão": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > ul > li:nth-child(5) > b',
-                        "Combustível": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[4]/b',
-                        "Anunciante": 'aside span span.wrap a span h2 > b'
+                        "Modelo": "main article section.row div.column span p > b",
+                        "Versão": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper div > span > p > span",
+
+                        "Preço": [
+                            # Caminho “curto” mais comum (b em <p>)
+                            "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper div > div > p > b",
+                            # Mesma área, mas às vezes vem sem <b>
+                            "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper div > div > p",
+                            # Caminho “longo” que você reportou
+                            "body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > div > div > p > b",
+                            # XPath genérico procurando um <p>/<b> com “R$” perto
+                            "//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//p[.//b or text()][contains(., 'R$')]",
+                        ],
+
+                        "Localização": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(1) > b",
+                        "Ano do Modelo": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(2) > b",
+                        "KM": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(3) > b",
+                        "Combustível": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(4) > b",
+                        "Transmissão": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(5) > b",
+                        "Cor": "section.column.spacing-3x div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(7) > b",
+                        "Anunciante": "aside span span.wrap a span h2 > b"
                     }
 
                     dados = {}
                     for chave, seletor in seletores.items():
-                        dados[chave] = await extrair_texto(pagina, [seletor])
+                        lista = seletor if isinstance(seletor, list) else [seletor]
+                        dados[chave] = await extrair_texto(pagina, lista)
 
                     dados["Link"] = link
                     dados["Cidade"] = "Desconhecido"
@@ -106,8 +119,28 @@ async def extracao_dados(contexto, link, semaphore):
                     dados["Código Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["codigo_fipe"])
                     dados["Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["preco_fipe"])
 
+                    dados["Código Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["codigo_fipe"])
+                    dados["Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["preco_fipe"])
+
+                    # Conversão robusta do "Preço"
+                    preco_raw = dados.get("Preço", "") or ""
                     try:
-                        dados["Preço"] = float(dados["Preço"].replace("R$", "").replace(".", "").replace(",", "."))
+                        # remove espaços especiais
+                        preco_raw = preco_raw.replace("\xa0", " ").strip()
+
+                        # se vier algo como "Preço: R$ 123.456,78", pegamos a parte com R$
+                        m = re.search(r"R\$\s*([\d\.\,]+)", preco_raw)
+                        if m:
+                            preco_num = m.group(1)
+                        else:
+                            # fallback: pega só dígitos e separadores
+                            m2 = re.search(r"([\d\.\,]+)", preco_raw)
+                            preco_num = m2.group(1) if m2 else ""
+
+                        if preco_num:
+                            dados["Preço"] = float(preco_num.replace(".", "").replace(",", "."))
+                        else:
+                            dados["Preço"] = "N/A"
                     except:
                         dados["Preço"] = "N/A"
 
