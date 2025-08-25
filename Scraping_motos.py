@@ -115,11 +115,11 @@ async def extracao_dados(contexto, link, semaphore):
 
                     seletores = {
                         "Modelo": 'main article section.row div.column span p > b',
-                        "Versão": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.   style-module__2c1zQG__vehicleDataWrapper > div > span > p > span',
-                        "Preço": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > div > div > p > b',
-                        "Localização": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > ul > li:nth-child(1) > b',
+                        "Versão": '/html/body/main/article/section[2]/div/div[1]/div[1]/div/span/p/span',
+                        "Preço": '/html/body/main/article/section[2]/div/div[1]/div[1]/div/div/p',
+                        "Localização": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[1]/b',
                         "Ano do Modelo": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > ul > li:nth-child(2) > b',
-                        "KM": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[3]/b/text()[1]',
+                        "KM": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[3]/b',
                         "Transmissão": 'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > ul > li:nth-child(5) > b',
                         "Combustível": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[4]/b',
                         "Anunciante": 'aside span span.wrap a span h2 > b'
