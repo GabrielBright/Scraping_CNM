@@ -22,7 +22,7 @@ ARQUIVO_EXCEL_DADOS = "dados_chaves_na_mao_motos.xlsx"
 ARQUIVO_CHECKPOINT = "checkpoint_motos.pkl"
 
 # Limites
-TIMEOUT = 30000
+TIMEOUT = 40000
 RETRIES = 3
 MAX_CONCURRENT = 15
 
