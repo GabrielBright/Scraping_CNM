@@ -53,12 +53,25 @@ async def carregar_links():
 async def extrair_texto(pagina, seletores, default="N/A"):
     for seletor in seletores:
         try:
-            is_xpath = seletor.strip().startswith("//")
-            locator = pagina.locator(f"xpath={seletor}" if is_xpath else seletor).first
+            s = seletor.strip()
+            is_xpath = s.startswith("xpath=") or s.startswith("//") or s.startswith("/")
+            locator = (
+                pagina.locator(s) if s.startswith("xpath=")
+                else pagina.locator(f"xpath={s}" if is_xpath else s)
+            ).first
+
             if await locator.count() > 0:
+                try:
+                    await locator.scroll_into_view_if_needed(timeout=TIMEOUT)
+                except:
+                    pass
+                await asyncio.sleep(0.2)
+
                 texto = await locator.text_content(timeout=TIMEOUT)
                 if texto:
-                    return texto.strip()
+                    texto = texto.replace("\xa0", " ").strip()
+                    if texto:
+                        return texto
         except:
             continue
     return default
@@ -82,8 +95,12 @@ async def extracao_dados(contexto, link, semaphore):
 
                     seletores = {
                         "Modelo": "main article section.row div.column span p > b",
-                        "Versão": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper div > span > p > span",
-
+                        "Versão": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/div/span/p/span",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > div > span > p > span",
+                            # fallback genérico dentro do wrapper
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//span/p/span)[1]"
+                        ],
                         "Preço": [
                             # Caminho “curto” mais comum (b em <p>)
                             "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper div > div > p > b",
@@ -94,13 +111,42 @@ async def extracao_dados(contexto, link, semaphore):
                             # XPath genérico procurando um <p>/<b> com “R$” perto
                             "//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//p[.//b or text()][contains(., 'R$')]",
                         ],
-
-                        "Localização": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(1) > b",
-                        "Ano do Modelo": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(2) > b",
-                        "KM": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(3) > b",
-                        "Combustível": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(4) > b",
-                        "Transmissão": "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(5) > b",
-                        "Cor": "section.column.spacing-3x div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper ul > li:nth-child(7) > b",
+                        "Localização": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[1]/b",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(1) > b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[1]//b)[1]",
+                            # por rótulo, se existir
+                            "xpath=//ul/li[.//small[contains(translate(.,'ÂÃÁÀáãâà','AAAAaaaa'),'localiza')]]//b"
+                        ],
+                        "Ano do Modelo": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[2]/b",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(2) > b",
+                            "xpath=//ul/li[.//small[contains(., 'Ano') and contains(., 'modelo')]]//b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[2]//b)[1]"
+                        ],
+                        "KM": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[3]/b",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(3) > b",
+                            "xpath=//ul/li[.//small[contains(translate(.,'ÂÃÁÀáãâà','AAAAaaaa'),'km') or contains(.,'Quilometr')]]//b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[3]//b)[1]"
+                        ],
+                        "Combustível": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[4]/b",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(4) > b",
+                            "xpath=//ul/li[.//small[contains(translate(.,'ÂÃÁÀáãâà','AAAAaaaa'),'combust')]]//b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[4]//b)[1]"
+                        ],
+                        "Transmissão": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[5]/b",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(5) > b",
+                            "//ul/li[.//small[contains(., 'Trans') or contains(., 'Câmbio')]]//b"
+                        ],
+                        "Cor": [
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(7) > b",
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[7]/b",
+                            "xpath=//ul/li[.//small[contains(translate(.,'ÂÃÁÀáãâà','AAAAaaaa'),'cor')]]//b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[7]//b)[1]"
+                        ],
                         "Anunciante": "aside span span.wrap a span h2 > b"
                     }
 
