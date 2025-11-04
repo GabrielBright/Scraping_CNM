@@ -62,40 +62,30 @@ async def carregar_links():
 
 async def extrair_texto(pagina, seletores, default="N/A"):
     for seletor in seletores:
-        logging.debug(f"Tentando seletor: {seletor}")
         try:
-            is_xpath = seletor.strip().startswith("/") or seletor.strip().startswith("//")
-            locator = pagina.locator(f"xpath={seletor}" if is_xpath else seletor)
-            count = await locator.count()
-            if count == 0:
-                continue
-            for i in range(count):
-                el = locator.nth(i)
+            s = seletor.strip()
+            is_xpath = s.startswith("xpath=") or s.startswith("//") or s.startswith("/")
+            locator = (
+                pagina.locator(s) if s.startswith("xpath=")
+                else pagina.locator(f"xpath={s}" if is_xpath else s)
+            ).first
+
+            if await locator.count() > 0:
                 try:
-                    await el.scroll_into_view_if_needed(timeout=TIMEOUT)
-                    await asyncio.sleep(0.8)  # dar tempo para o JS preencher
+                    await locator.scroll_into_view_if_needed(timeout=TIMEOUT)
+                except:
+                    pass
+                await asyncio.sleep(0.2)
 
-                    texto = None
-                    try:
-                        texto = await el.text_content(timeout=TIMEOUT)
-                    except:
-                        try:
-                            texto = await el.inner_text(timeout=TIMEOUT)
-                        except:
-                            try:
-                                texto = await el.evaluate("el => el.innerText")
-                            except:
-                                pass
-
-                    if texto and texto.strip():
-                        return texto.strip()
-                except Exception:
-                    continue
-        except Exception:
+                texto = await locator.text_content(timeout=TIMEOUT)
+                if texto:
+                    texto = texto.replace("\xa0", " ").strip()
+                    if texto:
+                        return texto
+        except:
             continue
     return default
 
-# Extração dos dados tecnicos 
 async def extracao_dados(contexto, link, semaphore):
     async with semaphore:
         pagina = await contexto.new_page()
@@ -114,34 +104,66 @@ async def extracao_dados(contexto, link, semaphore):
                         await asyncio.sleep(0.4)
 
                     seletores = {
-                        "Modelo": 'main article section.row div.column span p > b',
-                        "Versão": '/html/body/main/article/section[2]/div/div[1]/div[1]/div/span/p/span',
-                        "Preço": [
-                            "/html/body/main/article/section[2]/div/div[1]/div[1]/div/div/p/b",
-                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > div > div > p > b",
-                            "(//main//*[self::p or self::h2 or self::h3]//b[contains(normalize-space(.),'R$')])[1]"
+                        "Modelo": "main article section.row div.column span p > b",
+                        "Versão": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/div/span/p/span",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > div > span > p > span",
+                            # fallback genérico dentro do wrapper
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//span/p/span)[1]"
                         ],
-                        "Localização": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[1]/b',
+                        "Preço": [
+                            # Caminho “curto” mais comum (b em <p>)
+                            "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper div > div > p > b",
+                            # Mesma área, mas às vezes vem sem <b>
+                            "section.row div.column.spacing-2x div.column.style-module__2c1zQG__vehicleDataWrapper div > div > p",
+                            # Caminho “longo” que você reportou
+                            "body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.column.spacing-2x.style-module__vnSL7G__mainSectionVehicle > div.column.style-module__2c1zQG__vehicleDataWrapper > div > div > p > b",
+                            # XPath genérico procurando um <p>/<b> com “R$” perto
+                            "//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//p[.//b or text()][contains(., 'R$')]",
+                        ],
+                        "Localização": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[1]/b",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(1) > b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[1]//b)[1]",
+                            # por rótulo, se existir
+                            "xpath=//ul/li[.//small[contains(translate(.,'ÂÃÁÀáãâà','AAAAaaaa'),'localiza')]]//b"
+                        ],
                         "Ano do Modelo": [
                             "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[2]/b",
-                            "//ul/li[.//small[contains(., 'Ano') and contains(., 'modelo')]]//b"
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(2) > b",
+                            "xpath=//ul/li[.//small[contains(., 'Ano') and contains(., 'modelo')]]//b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[2]//b)[1]"
                         ],
-                        "KM": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[3]/b',
+                        "KM": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[3]/b",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(3) > b",
+                            "xpath=//ul/li[.//small[contains(translate(.,'ÂÃÁÀáãâà','AAAAaaaa'),'km') or contains(.,'Quilometr')]]//b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[3]//b)[1]"
+                        ],
+                        "Combustível": [
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[4]/b",
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(4) > b",
+                            "xpath=//ul/li[.//small[contains(translate(.,'ÂÃÁÀáãâà','AAAAaaaa'),'combust')]]//b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[4]//b)[1]"
+                        ],
                         "Transmissão": [
                             "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[5]/b",
                             "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(5) > b",
                             "//ul/li[.//small[contains(., 'Trans') or contains(., 'Câmbio')]]//b"
                         ],
-                        "Combustível": '/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[4]/b',
-                        "Anunciante": 'aside span span.wrap a span h2 > b'
+                        "Cor": [
+                            "body > main > article > section.row.spacing-4x.space-between.style-module-scss-module___tK7ya__mainSection > div > div.column.spacing-2x.style-module-scss-module___tK7ya__mainSectionVehicle > div.column.style-module-scss-module__7azAOG__vehicleDataWrapper > ul > li:nth-child(7) > b",
+                            "/html/body/main/article/section[2]/div/div[1]/div[1]/ul/li[7]/b",
+                            "xpath=//ul/li[.//small[contains(translate(.,'ÂÃÁÀáãâà','AAAAaaaa'),'cor')]]//b",
+                            "xpath=(//section[contains(@class,'mainSection')]//div[contains(@class,'vehicleDataWrapper')]//ul/li[7]//b)[1]"
+                        ],
+                        "Anunciante": "aside span span.wrap a span h2 > b"
                     }
 
                     dados = {}
                     for chave, seletor in seletores.items():
-                        if isinstance(seletor, list):
-                            dados[chave] = await extrair_texto(pagina, seletor)
-                        else:
-                            dados[chave] = await extrair_texto(pagina, [seletor])
+                        lista = seletor if isinstance(seletor, list) else [seletor]
+                        dados[chave] = await extrair_texto(pagina, lista)
 
                     dados["Link"] = link
                     dados["Cidade"] = "Desconhecido"
@@ -153,10 +175,28 @@ async def extracao_dados(contexto, link, semaphore):
                     dados["Código Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["codigo_fipe"])
                     dados["Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["preco_fipe"])
 
+                    dados["Código Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["codigo_fipe"])
+                    dados["Fipe"] = await extrair_texto(pagina, SELETORES_FIPE["preco_fipe"])
+
+                    # Conversão robusta do "Preço"
+                    preco_raw = dados.get("Preço", "") or ""
                     try:
-                        _p = (dados["Preço"] or "").replace("\xa0", " ").replace("R$", "").replace(" ", "")
-                        _p = _p.replace(".", "").replace(",", ".")
-                        dados["Preço"] = float(_p)
+                        # remove espaços especiais
+                        preco_raw = preco_raw.replace("\xa0", " ").strip()
+
+                        # se vier algo como "Preço: R$ 123.456,78", pegamos a parte com R$
+                        m = re.search(r"R\$\s*([\d\.\,]+)", preco_raw)
+                        if m:
+                            preco_num = m.group(1)
+                        else:
+                            # fallback: pega só dígitos e separadores
+                            m2 = re.search(r"([\d\.\,]+)", preco_raw)
+                            preco_num = m2.group(1) if m2 else ""
+
+                        if preco_num:
+                            dados["Preço"] = float(preco_num.replace(".", "").replace(",", "."))
+                        else:
+                            dados["Preço"] = "N/A"
                     except:
                         dados["Preço"] = "N/A"
 
@@ -169,12 +209,12 @@ async def extracao_dados(contexto, link, semaphore):
                         dados["Ano do Modelo"] = "N/A"
                         
                     blindagem = await extrair_texto(pagina, [
-                        '/html/body/main/article/section[2]/div/div[2]/span/ul/li[14]/svg',
+                        '/html/body/main/article/section[2]/div/div[2]/span/ul/li[15]',
                         'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.style-module__HWYeja__optionalItemsContainer > span > ul > li:nth-child(14) > p'
                     ], default="")
 
-                    dados["Blindados"] = "Sim" if "blindado" in blindagem.lower() else "Nao"
-
+                    dados["Blindados"] = "S" if "blindado" in blindagem.lower() else "N"
+                    
                     return dados
                 except:
                     await asyncio.sleep(1)

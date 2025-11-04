@@ -199,7 +199,7 @@ async def extracao_dados(contexto, link, semaphore):
                         dados["Ano do Modelo"] = "N/A"
                         
                     blindagem = await extrair_texto(pagina, [
-                        '/html/body/main/article/section[2]/div/div[2]/span/ul/li[14]/svg',
+                        '/html/body/main/article/section[2]/div/div[2]/span/ul/li[15]',
                         'body > main > article > section.row.spacing-4x.space-between.style-module__vnSL7G__mainSection > div > div.style-module__HWYeja__optionalItemsContainer > span > ul > li:nth-child(14) > p'
                     ], default="")
 
